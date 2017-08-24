@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Update folder location where we will read in data and write to
-base_path = 'C:/Users/Ayman/Desktop/calculate_efficiency_frontier/'
+base_path = ''
 
 data = []
 f = open(base_path + 'data_example.csv', 'r')
@@ -34,8 +34,8 @@ originalx = [x[1] for x in data]
 originaly = [y[2] for y in data] 
 plt.scatter(originalx, originaly, s = 3.25, c = 'b', label = 'Original Data')
 
-# sort inplace by the x value
-data.sort(key = lambda x: x [1])
+# sort inplace by the y and x values
+data.sort(key = lambda x: (x[1], x[2]))
 
 # Then, iteratively go through dataframe dropping strategies that are
 # dominated; i.e. strategies where the y value is lower than the one before
@@ -48,9 +48,10 @@ while True:
             end = True
             break
         else:
-            if data[index][2] > data[index+1][2]:
+            if (data[index][1] >= data[index+1][1] and 
+                data[index][2] < data[index+1][2]):
                 # Del instead of pop because we don't care what was deleted
-                del data[index]
+                del data[index + 1]
                 # Restart from the top
                 break
     if end is True:
