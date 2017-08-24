@@ -99,9 +99,7 @@ header = ['Label', 'X', 'Y', 'ICER']
 df = pd.DataFrame(data, columns = header)
 df.to_csv(base_path + 'frontier_data.csv', index = False)
 
-finalx = [x[1] for x in data]
-finaly = [y[2] for y in data]
-plt.plot(finalx, finaly, 'r--', label = 'Efficiency Frontier')
+plt.plot(df['X'], df['Y'], 'r--', label = 'Efficiency Frontier')
 plt.legend()
 plt.savefig(base_path + 'graphed_data.png', dpi = 300)
 plt.show()
