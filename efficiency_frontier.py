@@ -1,106 +1,168 @@
 '''
-Module will calculate an efficency frontier. Point to whatever file path
-contains the data in csv format.
-
-Data should have NO header, but be in order of label, x, y
-
-I use y and x as used in an ICER calculation (y/x) (cost / qaly, for example)
+Module will calculate an efficency frontier.
 '''
-
+import enum
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Update folder location where we will read in data and write to
-base_path = ''
 
-data = []
-f = open(base_path + 'data_example.csv', 'r')
+class DataIndex(enum.IntEnum):
+    Label = 0
+    Benefit = 1
+    Cost = 2
 
-# Read in data in format of a list of ... 
-# []
-got_header = False
-for line in f:
-    split_line = line.split(',')
-    row = []
-    row.append(split_line[0])
-    row.append(float(split_line[1]))
-    row.append(float(split_line[2]))
-    data.append(row)
 
-plt.style.use('seaborn-bright')
-# Plot original data
-originalx = [x[1] for x in data]
-originaly = [y[2] for y in data] 
-plt.scatter(originalx, originaly, s = 3.25, c = 'b', label = 'Original Data')
-
-# sort inplace by the y and x values
-data.sort(key = lambda x: (x[1], x[2]))
-
-# Then, iteratively go through dataframe dropping strategies that are
-# dominated; i.e. strategies where the y value is lower than the one before
-# it (we already know that the x value is higher)
-
-while True:
-    end = False
-    for index in range(len(data)):
-        if index == len(data) - 1:
-            end = True
-            break
-        else:
-            if (data[index][1] >= data[index+1][1] and 
-                data[index][2] < data[index+1][2]):
-                # Del instead of pop because we don't care what was deleted
-                del data[index + 1]
-                # Restart from the top
-                break
-    if end is True:
-        break
-
-# Now comes a tricky part. We calculate ICERs between adjacent pairs and
-# drop the strategies where the ICER is greater than the next pair
-
-def get_icers():
+def get_icers(data):
     icers = []
-    for i in range(1, len(data)):
-        icers.append((data[i][2] - data[i-1][2])/
-                     (data[i][1] - data[i-1][1]))
+    for strategy in range(1, len(data)):
+        icers.append(
+            (data[strategy][DataIndex.Cost] - data[strategy
+                                                   - 1][DataIndex.Cost]) /
+            (data[strategy][DataIndex.Benefit] - data[strategy
+                                                      - 1][DataIndex.Benefit]))
     return icers
 
-while True:
-    end = False
-    icers = get_icers()
-    # length of ICER's is 1 less than the length of data
-    for index in range(len(icers)):
-        if index == len(icers) - 1:
-            end = True
-            break
-        else:
-            if icers[index] > icers[index + 1]:
-                # Del instead of pop because we don't care what was deleted
-                # This is a little tricky, but assume we have icers like this:
-                # 2 vs 1 -> 100
-                # 3 vs 2 -> 300
-                # 4 vs 3 --> 200
-                # Then because 3 vs 2 is greater than 4 vs 3, we delete
-                # the third strategy which is index 1 in our ICERs BUT is
-                # actually index 2 in our data
-                del data[index +1]
-                # Restart from the top
+
+def drop_icer_dominated_strategies(data):
+
+    while True:
+        end = False
+        icers = get_icers(data)
+        # length of ICER's is 1 less than the length of data
+        for index in range(len(icers)):
+            if index == len(icers) - 1:
+                end = True
                 break
-    if end is True:
-        # Append ICER's
-        data[0].append("N/A")
-        for i in range(1, len(data)):
-            data[i].append(icers[i-1])
-        break
+            else:
+                if icers[index] > icers[index + 1]:
+                    # This is a little tricky, but assume we have icers
+                    # like this:
+                    # 2 vs 1 -> 100
+                    # 3 vs 2 -> 300
+                    # 4 vs 3 --> 200
+                    # Then because 3 vs 2 is greater than 4 vs 3, we delete
+                    # the third strategy which is index 1 in our ICERs BUT is
+                    # actually index 2 in our data
+                    del data[index + 1]
+                    # Restart from the top
+                    break
+        if end is True:
+            # Append ICER's
+            data[0].append("N/A")
+            for i in range(1, len(data)):
+                data[i].append(icers[i - 1])
+            break
 
-# Write final output
-header = ['Label', 'X', 'Y', 'ICER']
-df = pd.DataFrame(data, columns = header)
-df.to_csv(base_path + 'frontier_data.csv', index = False)
 
-plt.plot(df['X'], df['Y'], 'r--', label = 'Efficiency Frontier')
-plt.legend()
-plt.savefig(base_path + 'graphed_data.png', dpi = 300)
-plt.show()
+def drop_dominated_strategies(data):
+    while True:
+        end = False
+        for strategy in range(len(data)):
+            if strategy == len(data) - 1:
+                end = True
+                break
+            else:
+                if (data[strategy][DataIndex.Benefit] >=
+                        data[strategy + 1][DataIndex.Benefit]
+                        and data[strategy][DataIndex.Cost] <
+                        data[strategy + 1][DataIndex.Cost]):
+                    # Dominated
+                    del data[strategy + 1]
+                    # Restart from the top
+                    break
+        if end is True:
+            break
+
+
+def get_data_from_csv(path, header_in_file):
+    data = []
+    f = open(path, 'r')
+    got_header = True
+    if header_in_file is True:
+        got_header = False
+    for line in f:
+        if got_header is False:
+            got_header = True
+        else:
+            split_line = line.split(',')
+            row = []
+            row.append(split_line[0])
+            row.append(float(split_line[1]))
+            row.append(float(split_line[2]))
+            data.append(row)
+    return data
+
+
+def calculate_frontier(data=None,
+                       path_to_data=None,
+                       data_header_in_csv=False,
+                       print_output=True,
+                       path_to_output=None,
+                       graph=True,
+                       path_to_graph_output=None,
+                       invert_graph=False):
+    '''
+    Input data in format of [[strategy labels, benefits, costs]]; a
+    n x 3 dimensional array where n is the number of strategies and each row
+    has a label (string), a benefit (double), and a cost (double). Or,
+    write the analagous in a CSV file and point to the file and whether or not
+    there is a header.
+    Function will return a tuple of:
+    1) The strategy with the most benefit
+    2) The strategy with the least cost
+    3) The most optimal strategy
+    '''
+    if data is None:
+        data = get_data_from_csv(path_to_data, data_header_in_csv)
+    if graph is True:
+        plt.style.use('bmh')
+        # Plot all of the data
+        all_benefit = [strategy[DataIndex.Benefit] for strategy in data]
+        all_cost = [strategy[DataIndex.Cost] for strategy in data]
+        if invert_graph:
+            plt.scatter(all_cost, all_benefit, s=3.25, c='b', label='All Data')
+        else:
+            plt.scatter(all_benefit, all_cost, s=3.25, c='b', label='All Data')
+
+    # sort data inplace by the cost and benefit values
+    data.sort(
+        key=
+        lambda strategy: (strategy[DataIndex.Benefit], strategy[DataIndex.Cost])
+    )
+
+    # Then, iteratively go through dataframe dropping strategies that are
+    # dominated; i.e. strategies where the cost value is lower than the one
+    # before it (we already know that the benefit value is higher)
+
+    drop_dominated_strategies(data)
+
+    # Now comes a tricky part. We calculate ICERs between adjacent pairs and
+    # drop the strategies where the ICER is greater than the next pair
+
+    drop_icer_dominated_strategies(data)
+
+    # Final headers and dataframes
+    header = ['Label', 'Benefit', 'Cost', 'ICER']
+    df = pd.DataFrame(data, columns=header)
+    if print_output is True:
+        # Write final output
+        if path_to_output is None:
+            path_to_output = 'frontier_data.csv'
+        df.to_csv(path_to_output, index=False)
+
+    if graph is True:
+        if path_to_graph_output is None:
+            path_to_graph_output = 'graphed_data'
+        if invert_graph:
+            plt.plot(
+                df['Cost'], df['Benefit'], 'r--', label='Efficiency Frontier')
+        else:
+            plt.plot(
+                df['Benefit'], df['Cost'], 'r--', label='Efficiency Frontier')
+        plt.legend()
+        plt.savefig(path_to_graph_output, dpi=300)
+        plt.close()
+        plt.clf()
+
+    return
