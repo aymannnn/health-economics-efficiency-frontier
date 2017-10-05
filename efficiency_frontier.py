@@ -108,10 +108,7 @@ def calculate_frontier(data=None,
     has a label (string), a benefit (double), and a cost (double). Or,
     write the analagous in a CSV file and point to the file and whether or not
     there is a header.
-    Function will return a tuple of:
-    1) The strategy with the most benefit
-    2) The strategy with the least cost
-    3) The most optimal strategy
+    Function will return a dataframe of strategies on the frontier
     '''
     if data is None:
         data = get_data_from_csv(path_to_data, data_header_in_csv)
@@ -165,4 +162,4 @@ def calculate_frontier(data=None,
         plt.close()
         plt.clf()
 
-    return
+    return df

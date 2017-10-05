@@ -1,6 +1,6 @@
 import efficiency_frontier
 
-efficiency_frontier.calculate_frontier(
+test = efficiency_frontier.calculate_frontier(
     data=None,
     path_to_data='data_example.csv',
     data_header_in_csv=False,
