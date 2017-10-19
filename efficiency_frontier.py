@@ -109,6 +109,7 @@ def calculate_frontier(data=None,
                        print_output=True,
                        path_to_output=None,
                        graph=True,
+                       title=None,
                        path_to_graph_output=None,
                        invert_graph=False,
                        list_frontier_on_graph=True,
@@ -128,6 +129,8 @@ def calculate_frontier(data=None,
     if graph is True:
         plt.style.use('bmh')
         fig, ax = plt.subplots(nrows=1, ncols=1, dpi=300, figsize=(15, 7.5))
+        if title:
+            fig.title(title)
         # Plot all of the data
         all_benefit = [strategy[DataIndex.Benefit] for strategy in data]
         all_cost = [strategy[DataIndex.Cost] for strategy in data]
