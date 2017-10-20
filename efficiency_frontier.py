@@ -4,6 +4,7 @@ Module will calculate an efficency frontier.
 import enum
 import matplotlib.pyplot as plt
 import pandas as pd
+import copy
 
 
 class DataIndex(enum.IntEnum):
@@ -103,35 +104,46 @@ def get_optimal(data, threshold):
     return data[0].copy()
 
 
-def calculate_frontier(data=None,
-                       path_to_data=None,
-                       data_header_in_csv=False,
-                       print_output=True,
-                       path_to_output=None,
-                       graph=True,
-                       title=None,
-                       path_to_graph_output=None,
-                       invert_graph=False,
-                       list_frontier_on_graph=True,
-                       list_optimal=True,
-                       icer_round_digits_graph=2,
-                       threshold=100000):
+def data_to_csv(data, header, path):
+    df = pd.DataFrame(data, columns=header)
+    df.to_csv(path, index=False)
+
+
+def calculate_frontier(
+        data=None,
+        read_in_data=False,
+        data_header_in_csv=True,
+        path_to_data=None,
+        threshold=100000,
+        print_original=False,
+        path_to_print_original='original_data.csv',
+        print_frontier_strategies=True,
+        path_to_frontier_output='frontier_strategies.csv',
+        print_graph=True,
+        path_to_graph='graph',
+        title='Efficiency Frontier',
+        invert_graph=True,  # Standard way of looking at it
+        list_frontier=True,
+        mark_optimal=True,
+        ICER_digits=2):
     '''
     Input data in format of [[strategy labels, benefits, costs]]; a
     n x 3 dimensional array where n is the number of strategies and each row
     has a label (string), a benefit (double), and a cost (double). Or,
     write the analagous in a CSV file and point to the file and whether or not
     there is a header.
-    Function will return a dataframe of strategies on the frontier
     '''
-    if data is None:
+    if read_in_data:
         data = get_data_from_csv(path_to_data, data_header_in_csv)
-    if graph is True:
+
+    if print_original:
+        data_to_csv(data, ['Label', 'Benefit', 'Cost'], path_to_print_original)
+
+    # Scatterplot everything
+    if print_graph:
         plt.style.use('bmh')
         fig, ax = plt.subplots(nrows=1, ncols=1, dpi=300, figsize=(15, 7.5))
-        if title:
-            plt.title(title)
-        # Plot all of the data
+        plt.title(title)
         all_benefit = [strategy[DataIndex.Benefit] for strategy in data]
         all_cost = [strategy[DataIndex.Cost] for strategy in data]
         if invert_graph:
@@ -157,34 +169,31 @@ def calculate_frontier(data=None,
     drop_icer_dominated_strategies(data)
 
     # Final headers and dataframes
-    header = ['Label', 'Benefit', 'Cost', 'ICER']
-    df = pd.DataFrame(data, columns=header)
-    if print_output is True:
-        # Write final output
-        if path_to_output is None:
-            path_to_output = 'frontier_data.csv'
-        df.to_csv(path_to_output, index=False)
 
-    if list_optimal is True:
-        optimal_strategy = get_optimal(data, threshold)
-        if invert_graph:
-            plt.scatter(
-                optimal_strategy[DataIndex.Cost],
-                optimal_strategy[DataIndex.Benefit],
-                s=200.25,
-                c='cyan',
-                label='Optimal Strategy')
-        else:
-            plt.scatter(
-                optimal_strategy[DataIndex.Benefit],
-                optimal_strategy[DataIndex.Cost],
-                s=200.25,
-                c='cyan',
-                label='Optimal Strategy')
+    df = pd.DataFrame(data, columns=['Label', 'Benefit', 'Cost', 'ICER'])
+    if print_frontier_strategies:
+        data_to_csv(data, ['Label', 'Benefit', 'Cost', 'ICER'],
+                    path_to_frontier_output)
+    if print_graph:
 
-    if graph is True:
-        if path_to_graph_output is None:
-            path_to_graph_output = 'graphed_data'
+        # Plot the optimal point
+        if mark_optimal:
+            optimal_strategy = get_optimal(data, threshold)
+            if invert_graph:
+                plt.scatter(
+                    optimal_strategy[DataIndex.Cost],
+                    optimal_strategy[DataIndex.Benefit],
+                    s=200.25,
+                    c='cyan',
+                    label='Optimal Strategy')
+            else:
+                plt.scatter(
+                    optimal_strategy[DataIndex.Benefit],
+                    optimal_strategy[DataIndex.Cost],
+                    s=200.25,
+                    c='cyan',
+                    label='Optimal Strategy')
+
         if invert_graph:
             plt.plot(
                 df['Cost'], df['Benefit'], 'r--', label='Efficiency Frontier')
@@ -192,10 +201,11 @@ def calculate_frontier(data=None,
             plt.plot(
                 df['Benefit'], df['Cost'], 'r--', label='Efficiency Frontier')
         plt.legend()
+
         # Add on a textbox that includes the dominant strategy
-        if list_frontier_on_graph is True:
+        if list_frontier:
             text_for_textbox = ""
-            if list_optimal is True:
+            if mark_optimal:
                 text_for_textbox += "Optimal Strategy - "
                 text_for_textbox += optimal_strategy[DataIndex.Label] + "\n\n\n"
             text_for_textbox += "Strategies on Frontier\n"
@@ -204,10 +214,10 @@ def calculate_frontier(data=None,
                 text_for_textbox += " | ICER : "
                 icer = strategy[DataIndex.ICER]
                 if icer != 'N/A':
-                    icer = str(round(float(icer), icer_round_digits_graph))
+                    icer = str(round(float(icer), ICER_digits))
                 text_for_textbox += icer
             props = dict(boxstyle='square', facecolor='white', alpha=0.5)
-            if invert_graph is True:
+            if invert_graph:
                 loc = (0.65, 0.35)
             else:
                 loc = (0.35, 0.55)
@@ -218,11 +228,7 @@ def calculate_frontier(data=None,
                 size='small',
                 verticalalignment='center',
                 bbox=props)
-        plt.savefig(path_to_graph_output, dpi=300)
+        plt.savefig(path_to_graph, dpi=300)
         plt.close()
         plt.clf()
-
     return df
-
-
-calculate_frontier(path_to_data="data_example.csv", invert_graph=False)
