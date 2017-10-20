@@ -14,7 +14,7 @@ class DataIndex(enum.IntEnum):
     ICER = 3
 
 
-def get_icers(data):
+def _get_icers(data):
     icers = []
     for strategy in range(1, len(data)):
         icers.append(
@@ -25,11 +25,11 @@ def get_icers(data):
     return icers
 
 
-def drop_icer_dominated_strategies(data):
+def _drop_icer_dominated_strategies(data):
 
     while True:
         end = False
-        icers = get_icers(data)
+        icers = _get_icers(data)
         # length of ICER's is 1 less than the length of data
         for index in range(len(icers)):
             if index == len(icers) - 1:
@@ -56,7 +56,7 @@ def drop_icer_dominated_strategies(data):
             break
 
 
-def drop_dominated_strategies(data):
+def _drop_dominated_strategies(data):
     while True:
         end = False
         for strategy in range(len(data)):
@@ -76,7 +76,7 @@ def drop_dominated_strategies(data):
             break
 
 
-def get_data_from_csv(path, header_in_file):
+def _get_data_from_csv(path, header_in_file):
     data = []
     f = open(path, 'r')
     got_header = True
@@ -95,7 +95,7 @@ def get_data_from_csv(path, header_in_file):
     return data
 
 
-def get_optimal(data, threshold):
+def _get_optimal(data, threshold):
     last_index = len(data) - 1
     while last_index > 0:
         if data[last_index][DataIndex.ICER] < threshold:
@@ -104,7 +104,7 @@ def get_optimal(data, threshold):
     return data[0].copy()
 
 
-def data_to_csv(data, header, path):
+def _data_to_csv(data, header, path):
     df = pd.DataFrame(data, columns=header)
     df.to_csv(path, index=False)
 
@@ -134,10 +134,11 @@ def calculate_frontier(
     there is a header.
     '''
     if read_in_data:
-        data = get_data_from_csv(path_to_data, data_header_in_csv)
+        data = _get_data_from_csv(path_to_data, data_header_in_csv)
 
     if print_original:
-        data_to_csv(data, ['Label', 'Benefit', 'Cost'], path_to_print_original)
+        _data_to_csv(data, ['Label', 'Benefit', 'Cost'],
+                     path_to_print_original)
 
     # Scatterplot everything
     if print_graph:
@@ -161,24 +162,24 @@ def calculate_frontier(
     # dominated; i.e. strategies where the cost value is lower than the one
     # before it (we already know that the benefit value is higher)
 
-    drop_dominated_strategies(data)
+    _drop_dominated_strategies(data)
 
     # Now comes a tricky part. We calculate ICERs between adjacent pairs and
     # drop the strategies where the ICER is greater than the next pair
 
-    drop_icer_dominated_strategies(data)
+    _drop_icer_dominated_strategies(data)
 
     # Final headers and dataframes
 
     df = pd.DataFrame(data, columns=['Label', 'Benefit', 'Cost', 'ICER'])
     if print_frontier_strategies:
-        data_to_csv(data, ['Label', 'Benefit', 'Cost', 'ICER'],
-                    path_to_frontier_output)
+        _data_to_csv(data, ['Label', 'Benefit', 'Cost', 'ICER'],
+                     path_to_frontier_output)
     if print_graph:
 
         # Plot the optimal point
         if mark_optimal:
-            optimal_strategy = get_optimal(data, threshold)
+            optimal_strategy = _get_optimal(data, threshold)
             if invert_graph:
                 plt.scatter(
                     optimal_strategy[DataIndex.Cost],
