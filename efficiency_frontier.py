@@ -108,6 +108,11 @@ def _data_to_csv(data, header, path):
     df = pd.DataFrame(data, columns=header)
     df.to_csv(path, index=False)
 
+## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4626430/
+## one step calculation of the efficiency frontier, dropping dominated
+## etc.
+## should implement this at some point
+
 
 def calculate_frontier(
         data=None,
@@ -125,7 +130,8 @@ def calculate_frontier(
         invert_graph=True,  # Standard way of looking at it
         list_frontier=True,
         mark_optimal=True,
-        ICER_digits=2):
+        ICER_digits=0,
+        get_optimal=False):
     '''
     Input data in format of [[strategy labels, benefits, costs]]; a
     n x 3 dimensional array where n is the number of strategies and each row
@@ -148,21 +154,22 @@ def calculate_frontier(
         all_benefit = [strategy[DataIndex.Benefit] for strategy in data]
         all_cost = [strategy[DataIndex.Cost] for strategy in data]
         if invert_graph:
-            plt.scatter(all_cost, all_benefit, s=3.25, c='b', label='All Data')
+            plt.scatter(all_cost, all_benefit, s=100, c='b', label='All Data')
         else:
-            plt.scatter(all_benefit, all_cost, s=3.25, c='b', label='All Data')
+            plt.scatter(all_benefit, all_cost, s=100, c='b', label='All Data')
 
     # sort data inplace by the cost and benefit values
     data.sort(
         key=
-        lambda strategy: (strategy[DataIndex.Benefit], strategy[DataIndex.Cost])
+        lambda strategy: (strategy[DataIndex.Cost], strategy[DataIndex.Benefit])
     )
-
+    
     # Then, iteratively go through dataframe dropping strategies that are
     # dominated; i.e. strategies where the cost value is lower than the one
     # before it (we already know that the benefit value is higher)
 
     _drop_dominated_strategies(data)
+
 
     # Now comes a tricky part. We calculate ICERs between adjacent pairs and
     # drop the strategies where the ICER is greater than the next pair
@@ -232,4 +239,8 @@ def calculate_frontier(
         plt.savefig(path_to_graph, dpi=300)
         plt.close()
         plt.clf()
+
+    if get_optimal == True:
+        optimal_strategy = _get_optimal(data, threshold)
+        return optimal_strategy[DataIndex.Label]
     return df
