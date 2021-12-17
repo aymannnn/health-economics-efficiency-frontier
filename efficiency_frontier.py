@@ -16,6 +16,10 @@ class DataIndex(enum.IntEnum):
 
 def _get_icers(data):
     icers = []
+    if len(data) == 1:
+        #print("what")
+        #print(data)
+        return ['Dominated']
     for strategy in range(1, len(data)):
         icers.append(
             (data[strategy][DataIndex.Cost] - data[strategy
@@ -26,10 +30,14 @@ def _get_icers(data):
 
 
 def _drop_icer_dominated_strategies(data):
-
+    iteration = 1
     while True:
         end = False
         icers = _get_icers(data)
+        if (iteration%1000==0):
+            print(iteration)
+            print('stuck in dropping icer dominated strategies')
+            print(icers)
         # length of ICER's is 1 less than the length of data
         for index in range(len(icers)):
             if index == len(icers) - 1:
@@ -54,6 +62,7 @@ def _drop_icer_dominated_strategies(data):
             for i in range(1, len(data)):
                 data[i].append(icers[i - 1])
             break
+        iteration += 1
 
 
 def _drop_dominated_strategies(data):
@@ -164,6 +173,8 @@ def calculate_frontier(
         lambda strategy: (strategy[DataIndex.Cost], strategy[DataIndex.Benefit])
     )
     
+    # print(data) # debug 12/14/21
+
     # Then, iteratively go through dataframe dropping strategies that are
     # dominated; i.e. strategies where the cost value is lower than the one
     # before it (we already know that the benefit value is higher)
